@@ -48,7 +48,7 @@ exports.getEditProduct = (req, res, next) => {
         pageTitle: 'Edit Product',
         path: '/admin/edit-product',
         editing: editMode,
-        product: product,
+        product,
         isAuthenticated: req.session.isLoggedIn
       });
     })
