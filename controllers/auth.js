@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const bcrypt = require("bcryptjs");
 const User = require('../models/user');
 const Error = require('../error/error');
@@ -65,7 +67,7 @@ exports.postSignup = (req, res, next) => {
   const password = req.body.password;
   const username = req.body.username;
   const confirmPassword = req.body.confirmPassword;
-  
+
   User.findOne({ email: email })
     .then(userDoc => {
       if (userDoc) {
@@ -104,4 +106,67 @@ exports.postLogout = (req, res, next) => {
     console.log(err);
     res.redirect('/');
   });
+};
+
+exports.getReset = (req, res, next) => {
+  res.render('auth/reset', {
+    path: '/reset',
+    pageTitle: 'Reset',
+    isAuthenticated: false,
+    errorMessage: Error(req, 'error')
+  });
+};
+
+exports.postReset = (req, res, next) => {
+  crypto.randomBytes(32, (err, buffer) => {
+    if (err) {
+      console.log(err);
+      req.redirect('/reset');
+    }
+
+    const token = buffer.toString('hex');
+
+    User.findOne({ email: req.body.email })
+      .then(user => {
+        if (!user) {
+          req.flash('error', 'No account with that email');
+          res.redirect('/reset');
+        }
+        user.resetToken = token;
+        user.resetTokenExpiration = Date.now() + 3600000;
+        return user.save();
+      })
+      .then(result => {
+        res.redirect('/');
+        transporter.sendMail({
+          from: "apisjscript@gmail.com",
+          to: req.body.email,
+          subject: "Password reset",
+          html: `
+            <p>You requested a password reset</p>
+            <p>Click this <a href="http://localhost:3000/reset/${token}">Link</a> to set a new password</p>
+            `
+        });
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  });
+};
+
+exports.getNewPassword = (req, res, next) => {
+  const token = req.params.token;
+
+  User.findOne({ resetToken: token, resetTokenExpiration: { $gt: Date.now() } })
+    .then(user => {
+
+      res.render('auth/new-password', {
+        path: '/new-password',
+        pageTitle: 'New Password',
+        isAuthenticated: false,
+        errorMessage: Error(req, 'error'),
+        userId: user._id.toString()
+      });
+    })
+    .catch(err => console.log(err));
 };
