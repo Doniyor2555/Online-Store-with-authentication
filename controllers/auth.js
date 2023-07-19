@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const User = require('../models/user');
 const Error = require('../error/error');
 
+const { validationResult } = require('express-validator')
+
 const nodemailer = require('nodemailer');
 
 let transporter = nodemailer.createTransport({
@@ -68,6 +70,16 @@ exports.postSignup = (req, res, next) => {
   const username = req.body.username;
   const confirmPassword = req.body.confirmPassword;
 
+  const errors = validationResult(req);
+  
+  if (!errors.isEmpty()) {
+    return res.status(422).render('auth/signup', {
+      path: '/signup',
+      pageTitle: 'Signup',
+      errorMessage: errors.array()
+    });;
+  }
+
   User.findOne({ email: email })
     .then(userDoc => {
       if (userDoc) {
@@ -121,7 +133,7 @@ exports.postReset = (req, res, next) => {
   crypto.randomBytes(32, (err, buffer) => {
     if (err) {
       console.log(err);
-      req.redirect('/reset');
+      res.redirect('/reset');
     }
 
     const token = buffer.toString('hex');
@@ -158,7 +170,6 @@ exports.getNewPassword = (req, res, next) => {
   const token = req.params.token;
   User.findOne({ resetToken: token, resetTokenExpiration: { $gt: Date.now() } })
     .then(user => {
-
       res.render('auth/new-password', {
         path: '/new-password',
         pageTitle: 'New Password',
